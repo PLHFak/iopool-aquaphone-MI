@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Aquaphone labo</title>
+<style>
+  :root { --fond:#0c1a22; --carte:#14262f; --texte:#e7f0f4; --doux:#8ca4b0; --accent:#29b2bf; --alerte:#e0795c; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fond); color:var(--texte); font:16px/1.4 -apple-system, system-ui, sans-serif;
+         display:flex; flex-direction:column; align-items:center;
+         padding:max(10px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)); }
+  #scene { position:relative; width:min(100%, 440px, calc(64vh * 0.7)); aspect-ratio:3/4; border-radius:18px;
+           overflow:hidden; background:#000; }
+  #menu-bouton { position:absolute; top:10px; right:10px; width:44px; height:44px; padding:0; border-radius:12px;
+                 font-size:24px; line-height:44px; background:rgba(0,0,0,.45); color:#fff; backdrop-filter:blur(6px); }
+  #menu { position:fixed; inset:0; z-index:10; display:none; background:rgba(5,12,16,.6); }
+  #menu.ouvert { display:block; }
+  #menu .panneau { position:absolute; top:0; right:0; bottom:0; width:min(100%, 420px); overflow-y:auto;
+                   background:var(--fond); padding:max(16px, env(safe-area-inset-top)) 16px 32px;
+                   box-shadow:-8px 0 24px rgba(0,0,0,.4); }
+  #menu h2 { font-size:18px; margin:18px 0 8px; }
+  #menu .entete { display:flex; justify-content:space-between; align-items:center; }
+  #menu .fermer { background:var(--carte); color:var(--texte); padding:10px 14px; }
+  .perso { display:flex; align-items:center; gap:12px; padding:10px; margin:8px 0; border-radius:14px;
+           background:var(--carte); border:2px solid transparent; }
+  .perso.actif { border-color:var(--accent); }
+  .perso img, .perso .vide { width:52px; height:52px; border-radius:50%; object-fit:cover; flex:none;
+                             background:#22363f; display:flex; align-items:center; justify-content:center; font-size:22px; }
+  .perso .nom { flex:1; font-weight:600; }
+  .perso .nom small { display:block; font-weight:400; color:var(--doux); }
+  .perso button { padding:10px 12px; font-size:14px; }
+  .perso button.secondaire { background:var(--carte); color:var(--texte); border:1px solid #2b4350; }
+  #depot { display:none; flex-direction:column; gap:0; background:var(--carte); border-radius:14px; padding:12px; margin-top:8px; }
+  #depot.ouvert { display:flex; }
+  #depot label { display:block; margin:10px 0 4px; font-size:14px; color:var(--doux); }
+  #depot .a-lire { background:#0c1a22; border-radius:10px; padding:10px; font-style:italic; }
+  .accord { display:flex !important; gap:10px; align-items:flex-start; color:var(--texte) !important; font-size:13px; }
+  .accord input { flex:none; width:22px; height:22px; margin-top:2px; }
+  #depot button { width:100%; margin-top:10px; }
+  #enregistrer.actif { background:var(--alerte); color:#fff; }
+  #mesures.cache { display:none; }
+  .choix-piscine { display:flex; gap:8px; }
+  .choix-piscine button { flex:1; background:var(--carte); color:var(--texte); border:2px solid #2b4350; padding:12px 8px; font-size:15px; }
+  .choix-piscine button.actif { border-color:var(--accent); background:#123642; }
+  #fiche-piscine { white-space:pre-wrap; font-size:13px; max-height:220px; overflow-y:auto; background:var(--carte);
+                   border-radius:12px; padding:10px; margin-top:8px; color:var(--doux); }
+  #dictee-piscine { background:var(--carte); border-radius:14px; padding:12px; margin-top:8px; }
+  #dictee-piscine textarea { width:100%; min-height:80px; font:inherit; padding:10px; border-radius:10px;
+                             border:1px solid #2b4350; background:var(--fond); color:var(--texte); margin-top:8px; }
+  #dictee-piscine button { width:100%; margin-top:8px; }
+  #dicter.actif { background:var(--alerte); color:#fff; }
+  canvas { width:100%; height:100%; display:block; }
+  #etat { position:absolute; left:0; right:0; bottom:0; padding:10px 14px; font-weight:600;
+          background:linear-gradient(transparent, rgba(0,0,0,.75)); }
+  #etat .point { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:8px; background:var(--doux); }
+  #etat.ecoute .point { background:var(--accent); }
+  #etat.entendu .point { background:#5cd67a; }
+  #etat.reflexion .point, #etat.parle .point { background:#f2c14e; }
+  #etat.erreur .point { background:var(--alerte); }
+  .bloc { width:min(100%, 440px); }
+  button { font:inherit; font-weight:600; border:0; border-radius:12px; padding:14px 18px; color:#062027;
+           background:var(--accent); cursor:pointer; }
+  #demarrer { width:100%; margin-top:14px; font-size:18px; }
+  #demarrer.coupe { background:var(--alerte); color:#fff; }
+  form { display:flex; gap:8px; margin-top:12px; }
+  input { flex:1; min-width:0; font:inherit; padding:12px; border-radius:12px; border:1px solid #2b4350;
+          background:var(--carte); color:var(--texte); }
+  #journal p { margin:8px 0; padding:10px 12px; border-radius:12px; background:var(--carte); }
+  #journal p.vous { border-left:3px solid var(--doux); }
+  #journal p.ia { border-left:3px solid var(--accent); }
+  table { width:100%; border-collapse:collapse; margin-top:12px; font-size:14px; font-variant-numeric:tabular-nums; }
+  td { padding:4px 6px; border-bottom:1px solid #22363f; }
+  td:last-child { text-align:right; }
+  tr.total td { font-weight:700; color:var(--accent); }
+  .note { color:var(--doux); font-size:13px; }
+  #mode { position:absolute; top:10px; left:10px; padding:4px 10px; border-radius:999px; font-size:13px;
+          font-weight:700; background:#f2c14e; color:#2a1f00; display:none; }
+  #journal p.labo { border-left:3px solid #f2c14e; }
+  #journal p.code { border-left:3px solid #f2c14e; background:#2a2410; white-space:pre-wrap; }
+  #journal p.code b { color:#f2c14e; }
+</style>
+</head>
+<body>
+<div id="scene">
+  <canvas id="ecran" width="540" height="720"></canvas>
+  <button id="menu-bouton" aria-label="Menu">☰</button>
+  <div id="mode">Mode labo · Claude Code</div>
+  <div id="etat"><span class="point"></span><span id="etat-texte">Appuyez sur « Démarrer »</span></div>
+</div>
+<div class="bloc">
+  <button id="demarrer">Démarrer (micro + son)</button>
+  <form id="saisie"><input id="question" placeholder="…ou tapez une question" autocomplete="off"><button>Envoyer</button></form>
+  <table id="mesures" class="cache"></table>
+  <div id="journal"></div>
+  <p class="note">Labo Aquaphone — vous parlez à une IA (assistant de Marc). Parlez, puis marquez une courte pause.
+    Commencez par « Aquaphone » pour parler au labo (Claude Code répond par écrit dans le terminal), par « iopool » pour revenir en client.</p>
+</div>
+<div id="menu"><div class="panneau">
+  <div class="entete"><b>Aquaphone</b><button class="fermer" id="menu-fermer">Fermer ✕</button></div>
+  <h2>Version en service <span class="note" style="font-weight:400">(lecture seule)</span></h2>
+  <p class="note">Ce bloc indique seulement ce qui tourne en ce moment : code (empreinte), personnage actif, voix de
+    référence et sa hauteur, vitesse, plage de hauteur contrôlée, modèle de voix et température. Rien à régler ici :
+    c'est votre fiche technique, utile aux experts pour vérifier la version testée.</p>
+  <div id="version" class="note" style="background:var(--carte);border-radius:12px;padding:10px;line-height:1.5">…</div>
+  <h2>Personnage <span class="note" style="font-weight:400">(photo + voix + prénom de l'assistant)</span></h2>
+  <p class="note">Le personnage choisi apparaît à l'écran et parle avec sa voix. Changer de personnage redémarre
+    l'assistant (≈ 2 min). « Déposer votre photo et votre voix » crée un personnage inédit à partir d'une photo
+    de face et d'un enregistrement de 12 s ; il n'efface aucun personnage existant.</p>
+  <div id="personas"></div>
+  <form id="depot">
+    <b id="depot-titre">Déposer votre photo et votre voix</b>
+    <label>Prénom</label><input type="text" name="prenom" maxlength="40" required>
+    <label>Photo de face, bouche fermée, visage bien éclairé</label>
+    <input type="file" name="photo" accept="image/*" required>
+    <label>Votre voix : touchez « Enregistrer » et lisez ce texte (≈ 12 s)</label>
+    <div class="a-lire" id="a-lire"></div>
+    <button type="button" id="enregistrer">🎙️ Enregistrer ma voix</button>
+    <audio id="ecoute" controls style="width:100%;margin-top:8px;display:none"></audio>
+    <label class="accord"><input type="checkbox" name="accord" value="oui" required><span id="texte-accord"></span></label>
+    <button type="submit" id="depot-envoyer">Envoyer</button>
+    <p class="note" id="depot-etat"></p>
+  </form>
+  <h2>Piscine du client</h2>
+  <p class="note">L'assistant adapte ses conseils à la piscine choisie, dès la question suivante (aucun redémarrage).</p>
+  <div class="choix-piscine">
+    <button type="button" data-choix="standard">Piscine standard (démo)</button>
+    <button type="button" data-choix="dictee">Piscine dictée</button>
+  </div>
+  <p class="note">« <b>Standard</b> » : fiche de démonstration (piscine familiale fictive, sans sonde iopool, eau un peu
+    trouble) — idéale pour tester le raisonnement. « <b>Dictée</b> » : la fiche se construit avec la description de la
+    vraie piscine, ci-dessous. Le bouton actif est surligné ; l'état courant est rappelé sous la fiche.</p>
+  <div id="fiche-piscine"></div>
+  <div id="dictee-piscine">
+    <b>Décrire la piscine à la voix ou par écrit</b>
+    <p class="note">Tout ce qui aide l'assistant à conseiller : dimensions et volume,_filtre et pompe, traitement
+      (chlore, brome, sel), présence d'une sonde iopool, dernières mesures (pH, ORP, température), traitements
+      récents, ce que vous voyez dans l'eau. Chaque enregistrement s'ajoute à la fiche ; « Effacer » repart de zéro.</p>
+    <button type="button" id="dicter">🎙️ Dicter la description</button>
+    <textarea id="texte-piscine" placeholder="…ou écrivez / collez ici (ex. export de mesures)"></textarea>
+    <button type="button" id="envoyer-piscine">Ajouter à la description</button>
+    <button type="button" id="effacer-piscine" class="fermer" style="background:var(--carte);color:var(--texte)">Effacer la piscine dictée</button>
+    <p class="note" id="etat-piscine"></p>
+  </div>
+  <h2>Réglages de la voix</h2>
+  <p class="note">Le curseur règle la vitesse d'élocution de l'assistant, sans changer la hauteur de la voix :
+    ×0,8 = lent et posé, ×1,15 = vitesse naturelle (choix par défaut), ×1,5 = vif et dynamique.</p>
+  <label for="vitesse">Vitesse du phrasé : <b id="vitesse-valeur">×1,15</b></label>
+  <input type="range" id="vitesse" min="0.8" max="1.5" step="0.05" value="1.15" style="width:100%;margin-top:8px">
+  <p class="note" id="vitesse-etat">S'applique dès la phrase suivante. Les phrases d'attente gardent leur vitesse jusqu'au prochain redémarrage.</p>
+  <h2>Affichage</h2>
+  <p class="note">« Mesures de délai » affiche, après chaque réponse, les temps réels mesurés : premier son entendu,
+    première image animée, fluidité. Utile aux experts ; à laisser décoché pour une conversation naturelle.</p>
+  <label class="accord"><input type="checkbox" id="voir-mesures"> Afficher les mesures de délai</label>
+</div></div>
+<script>
+const ecran = document.getElementById('ecran'), g = ecran.getContext('2d');
+const etatEl = document.getElementById('etat'), etatTexte = document.getElementById('etat-texte');
+const journal = document.getElementById('journal'), tableau = document.getElementById('mesures');
+const photo = new Image();
+photo.onload = () => {  // le canevas prend les proportions de la photo du personnage
+  ecran.width = photo.naturalWidth; ecran.height = photo.naturalHeight;
+  const scene = document.getElementById('scene'), r = photo.naturalWidth / photo.naturalHeight;
+  scene.style.aspectRatio = photo.naturalWidth + '/' + photo.naturalHeight;
+  scene.style.width = 'min(100%, 440px, calc(64vh * ' + r + '))';
+  g.drawImage(photo, 0, 0, ecran.width, ecran.height);
+};
+photo.src = 'photo.jpg';
+
+const TAMPON_DEBUT = 1.0;      // s de réserve au début de chaque réponse (le visage peut prendre du retard)
+const TAMPON_REPRISE = 0.5;
+const TAMPON_ATTENTE = 0.15;   // le clip d'attente est déjà entièrement calculé : presque pas de réserve
+const GARDE_ECHO = 0.6;        // s de micro coupé après la fin du son joué    // s de réserve après un trou
+let trous = [], debutReponse = 0;   // coupures du son de la réponse en cours : [instant (s), durée (ms)]
+let ctx = null, ws = null, lecture = 0, images = [], cleCourante = '', ridAttente = -1, ligneIA = null;
+
+const ETATS = { ecoute: 'Je vous écoute…', entendu: 'Je vous entends…', reflexion: 'Je réfléchis…', parle: 'Je vous réponds…' };
+function etat(cle, texte) { etatEl.className = cle; etatTexte.textContent = texte || ETATS[cle] || cle; }
+function envoyer(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
+function ligne(classe, texte) {
+  const p = document.createElement('p'); p.className = classe; p.textContent = texte;
+  journal.prepend(p); return p;
+}
+
+// Micro → 16 kHz mono PCM 16 bits, par paquets de 20 ms (rééchantillonnage linéaire dans un AudioWorklet)
+const CODE_MICRO = `
+class Micro extends AudioWorkletProcessor {
+  constructor() { super(); this.r = sampleRate / 16000; this.p = 0; this.prev = 0; this.b = new Int16Array(320); this.n = 0; }
+  process(entrees) {
+    const x = entrees[0] && entrees[0][0]; if (!x) return true;
+    const L = x.length;
+    while (this.p < L) {
+      const i = Math.floor(this.p), f = this.p - i;
+      const a = i === 0 ? this.prev : x[i - 1], b = x[i];
+      const v = Math.max(-1, Math.min(1, a + (b - a) * f));
+      this.b[this.n++] = v * 32767;
+      if (this.n === 320) { this.port.postMessage(this.b.buffer, [this.b.buffer]); this.b = new Int16Array(320); this.n = 0; }
+      this.p += this.r;
+    }
+    this.p -= L; this.prev = x[L - 1];
+    return true;
+  }
+}
+registerProcessor('micro', Micro);`;
+
+let micCoupe = false;
+function basculerMicro() {
+  micCoupe = !micCoupe;
+  const b = document.getElementById('demarrer');
+  b.classList.toggle('coupe', micCoupe);
+  b.textContent = micCoupe ? '🔇 Micro coupé — toucher pour réactiver' : '🎙️ Micro ouvert — toucher pour couper';
+}
+
+document.getElementById('demarrer').onclick = async (e) => {
+  if (ctx) { basculerMicro(); return; }
+  if (!navigator.mediaDevices || !window.isSecureContext) {
+    etat('erreur', 'Page non sécurisée : ouvrez l’adresse https://…ts.net'); return;
+  }
+  e.target.disabled = true;
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+  ctx.resume();
+  try {
+    const flux = await navigator.mediaDevices.getUserMedia(
+      { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } });
+    await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([CODE_MICRO], { type: 'application/javascript' })));
+    const noeud = new AudioWorkletNode(ctx, 'micro');
+    const muet = ctx.createGain(); muet.gain.value = 0;
+    ctx.createMediaStreamSource(flux).connect(noeud).connect(muet).connect(ctx.destination);
+    // Anti-écho : la page sait exactement quand le haut-parleur joue → micro coupé pendant la lecture
+    // et GARDE_ECHO secondes après (réverbération, latence de sortie du son).
+    noeud.port.onmessage = (m) => {
+      if (micCoupe) return;  // bouton « micro coupé » : plus rien n'est envoyé au serveur
+      if (ctx.currentTime < lecture + (ctx.outputLatency || 0) + GARDE_ECHO) return;
+      if (ws && ws.readyState === 1) ws.send(m.data);
+    };
+    e.target.disabled = false; micCoupe = true; basculerMicro();
+  } catch (err) {
+    etat('erreur', 'Micro indisponible : ' + err.message + ' (la saisie au clavier reste possible)');
+  }
+  connecter();
+  requestAnimationFrame(dessiner);
+};
+
+document.getElementById('saisie').onsubmit = (e) => {
+  e.preventDefault();
+  const q = document.getElementById('question');
+  if (!ctx) { document.getElementById('demarrer').click(); }
+  setTimeout(() => { envoyer({ type: 'texte', texte: q.value }); q.value = ''; }, ws ? 0 : 800);
+};
+
+function connecter() {
+  ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
+  ws.binaryType = 'arraybuffer';
+  ws.onopen = () => { photo.src = 'photo.jpg?' + Date.now(); chargerPersonas(); };
+  ws.onmessage = (e) => typeof e.data === 'string' ? message(JSON.parse(e.data)) : paquet(e.data);
+  ws.onclose = () => {
+    etat('erreur', 'Connexion perdue — reconnexion…');
+    fetch('/photo.jpg', { method: 'HEAD' }).then(r => { if (r.status === 401) location.href = '/connexion'; }).catch(() => {});
+    setTimeout(connecter, 1500);
+  };
+}
+
+// Paquet binaire : [type u8][0][n u16][rid u32][réservé u32] + n échantillons 24 kHz int16 + image JPEG
+function paquet(buf) {
+  const v = new DataView(buf);
+  if (v.getUint8(0) !== 1) return;
+  const n = v.getUint16(2, true), rid = v.getUint32(4, true);
+  const pcm = new Int16Array(buf, 12, n);
+  const ab = ctx.createBuffer(1, n, 24000), d = ab.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = pcm[i] / 32768;
+  // octet 1 = 1 : phrase d'attente (clip tout prêt, joué tout de suite) ; 0 : la vraie réponse
+  const attente = v.getUint8(1) === 1, cle = (attente ? 'a' : 'r') + rid, nouveau = cle !== cleCourante;
+  if (nouveau) {
+    lecture = Math.max(lecture, ctx.currentTime + (attente ? TAMPON_ATTENTE : TAMPON_DEBUT));
+    if (attente || rid !== ridAttente) { trous = []; debutReponse = lecture; }
+    if (attente) ridAttente = rid;
+  } else if (lecture < ctx.currentTime + 0.02) {                                                        // trou : on recale
+    trous.push([Math.round((lecture - debutReponse) * 10) / 10, Math.round((ctx.currentTime + TAMPON_REPRISE - lecture) * 1000)]);
+    lecture = ctx.currentTime + TAMPON_REPRISE;
+  }
+  const s = ctx.createBufferSource(); s.buffer = ab; s.connect(ctx.destination); s.start(lecture);
+  const img = { t: lecture, bmp: null };
+  images.push(img);
+  createImageBitmap(new Blob([new Uint8Array(buf, 12 + 2 * n)], { type: 'image/jpeg' })).then((b) => { img.bmp = b; });
+  if (nouveau) {
+    cleCourante = cle;
+    setTimeout(() => envoyer({ type: 'lecture', rid, attente }), Math.max(0, (lecture - ctx.currentTime) * 1000));
+  }
+  lecture += n / 24000;
+}
+
+// Affiche l'image dont l'instant est atteint par le son réellement entendu
+function dessiner() {
+  const t = ctx.currentTime - (ctx.outputLatency || 0);
+  while (images.length > 1 && images[1].t <= t && images[1].bmp) {
+    const x = images.shift(); if (x.bmp && x.bmp.close) x.bmp.close();
+  }
+  const im = images[0];
+  if (im && im.t <= t && im.bmp && !im.vu) { g.drawImage(im.bmp, 0, 0, ecran.width, ecran.height); im.vu = true; }
+  requestAnimationFrame(dessiner);
+}
+
+const LIBELLES = [
+  ['attente_silence_vad', 'Attente du silence (fin de phrase)'],
+  ['transcription', 'Transcription (Whisper)'],
+  ['claude_1re_phrase', 'Claude : 1re phrase'],
+  ['voix_1er_son', 'Voix : 1er son'],
+  ['visage_1re_image', 'Visage : 1re image'],
+  ['reseau_et_tampon', 'Réseau + tampon'],
+  ['premier_son_percu', 'Premier son (phrase d’attente comprise)'],
+  ['total_percu', 'Total fin de parole → réponse'],
+];
+function message(m) {
+  switch (m.type) {
+    case 'etat': etat(m.etat); break;
+    case 'transcription':
+      if (m.mode === 'labo') ligne('labo', 'Vous → Claude Code : ' + m.texte); else ligne('vous', 'Vous : ' + m.texte);
+      ligneIA = null; break;
+    case 'note': {
+      const p = ligne('code', ''); const b = document.createElement('b');
+      b.textContent = 'Claude Code (' + m.heure + ') : '; p.append(b, m.texte); break;
+    }
+    case 'mode': document.getElementById('mode').style.display = m.mode === 'labo' ? 'block' : 'none'; break;
+    case 'phrase':
+      if (!ligneIA) ligneIA = ligne('ia', 'IA : ');
+      ligneIA.textContent += m.texte + ' '; break;
+    case 'fin':
+      setTimeout(() => envoyer({ type: 'pret', rid: m.rid, trous }),
+                 Math.max(0, (lecture - ctx.currentTime) * 1000) + 300);
+      break;
+    case 'mesures':
+      tableau.innerHTML = LIBELLES.map(([k, l]) =>
+        `<tr class="${k === 'total_percu' ? 'total' : ''}"><td>${l}</td><td>${m[k] == null ? '—' : m[k] + ' ms'}</td></tr>`).join('');
+      break;
+    case 'erreur': etat('erreur', 'Erreur : ' + m.texte); break;
+    case 'redemarrage': etat('reflexion', 'Changement de personnage… (≈ 2 min)'); break;
+  }
+}
+
+// ─── Menu ☰ : personnages, dépôt photo + voix, affichage ───────────────────────────
+const menu = document.getElementById('menu'), depot = document.getElementById('depot');
+document.getElementById('menu-bouton').onclick = () => { menu.classList.add('ouvert'); chargerVersion(); chargerPersonas(); chargerPiscine(); };
+const VERSION_PAGE = 'page v6';  // change à chaque modification de cette page (vérifie que le navigateur n'a pas l'ancienne)
+async function chargerVersion() {
+  const el = document.getElementById('version');
+  try {
+    const v = await (await fetch('/version', { cache: 'no-store' })).json();
+    el.innerHTML = `<b>Code ${v.code}</b> · commit ${v.commit} · ${VERSION_PAGE}<br>Démarré le ${v.demarre}<br>`
+      + `Personnage : <b>${v.personnage}</b> · voix de référence ${v.voix_reference} (${v.hauteur_reference} Hz)<br>`
+      + `Voix : mode ${v.mode_voix} · vitesse ×${v.vitesse} · contrôle plage ${v.plage[0]}–${v.plage[1]} Hz · température ${v.temperature} · modèle ${v.modele_voix}<br>`
+      + `Depuis le démarrage : ${v.phrases} phrases, ${v.refaites} refaites, ${v.essais_ecartes} essais écartés`;
+    if (v.vitesse) afficherVitesse(v.vitesse);
+  } catch (e) { el.textContent = 'Version indisponible : ' + e.message; }
+}
+const curseurVitesse = document.getElementById('vitesse');
+function afficherVitesse(x) {
+  curseurVitesse.value = x;
+  document.getElementById('vitesse-valeur').textContent = '×' + Number(x).toFixed(2).replace('.', ',');
+}
+curseurVitesse.oninput = () => afficherVitesse(curseurVitesse.value);
+curseurVitesse.onchange = async () => {
+  const etat = document.getElementById('vitesse-etat');
+  const r = await fetch('/voix/vitesse', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({ vitesse: Number(curseurVitesse.value) }) });
+  const d = await r.json();
+  etat.textContent = r.ok ? `Vitesse ×${String(d.vitesse).replace('.', ',')} enregistrée : dès la phrase suivante (phrases d'attente : ×${String(d.vitesse_attente).replace('.', ',')} jusqu'au redémarrage).`
+                          : 'Erreur : ' + d.erreur;
+};
+document.getElementById('menu-fermer').onclick = () => menu.classList.remove('ouvert');
+menu.onclick = (e) => { if (e.target === menu) menu.classList.remove('ouvert'); };
+document.getElementById('voir-mesures').onchange = (e) => tableau.classList.toggle('cache', !e.target.checked);
+let placeChoisie = null, voixEnregistree = null;
+
+async function chargerPersonas() {
+  const r = await fetch('/personas'); if (!r.ok) return;
+  const d = await r.json();
+  document.getElementById('a-lire').textContent = d.texte_a_lire;
+  document.getElementById('texte-accord').textContent = d.consentement;
+  const zone = document.getElementById('personas'); zone.innerHTML = '';
+  for (const p of d.personas) {
+    const el = document.createElement('div'); el.className = 'perso' + (p.actif ? ' actif' : '');
+    let vignette;
+    if (p.pret) { vignette = document.createElement('img'); vignette.src = '/personas/' + p.nom + '/photo?' + Date.now(); }
+    else { vignette = document.createElement('div'); vignette.className = 'vide'; vignette.textContent = '＋'; }
+    const nom = document.createElement('div'); nom.className = 'nom'; nom.textContent = p.libelle;
+    const sous = document.createElement('small');
+    sous.textContent = p.actif ? 'En service' : p.fictif ? 'Personne fictive' : p.pret ? 'Prêt' : 'Photo + voix à déposer';
+    nom.append(sous); el.append(vignette, nom);
+    if (p.pret && !p.actif) {
+      const b = document.createElement('button'); b.textContent = 'Choisir';
+      b.onclick = () => choisirPersona(p.nom, p.libelle); el.append(b);
+    }
+    if (p.place) {
+      const b = document.createElement('button'); b.className = 'secondaire'; b.textContent = p.pret ? 'Remplacer' : 'Déposer';
+      b.onclick = () => ouvrirDepot(p.nom, p.libelle); el.append(b);
+    }
+    zone.append(el);
+  }
+}
+
+async function choisirPersona(nom, libelle) {
+  if (!confirm('Passer à « ' + libelle + ' » ? L’assistant redémarre (≈ 2 min).')) return;
+  const r = await fetch('/persona', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nom }) });
+  if (r.ok) { menu.classList.remove('ouvert'); etat('reflexion', 'Changement de personnage… (≈ 2 min)'); }
+  else alert((await r.json()).erreur || 'Échec');
+}
+
+function ouvrirDepot(nom, libelle) {
+  placeChoisie = nom; voixEnregistree = null;
+  depot.reset(); depot.classList.add('ouvert');
+  document.getElementById('depot-titre').textContent = 'Déposer votre photo et votre voix (' + libelle + ')';
+  document.getElementById('ecoute').style.display = 'none';
+  document.getElementById('depot-etat').textContent = '';
+  depot.scrollIntoView({ behavior: 'smooth' });
+}
+
+document.getElementById('enregistrer').onclick = async (e) => {
+  const b = e.target;
+  if (b.enregistreur) { b.enregistreur.stop(); return; }
+  const coupeAvant = micCoupe;
+  if (ctx && !micCoupe) basculerMicro();  // la conversation n'écoute pas pendant l'enregistrement
+  try {
+    const flux = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: true, channelCount: 1 } });
+    const morceaux = [], rec = new MediaRecorder(flux);
+    rec.ondataavailable = (x) => morceaux.push(x.data);
+    rec.onstop = () => {
+      flux.getTracks().forEach((t) => t.stop());
+      voixEnregistree = new Blob(morceaux, { type: rec.mimeType || 'audio/mp4' });
+      const a = document.getElementById('ecoute'); a.src = URL.createObjectURL(voixEnregistree); a.style.display = 'block';
+      b.enregistreur = null; b.classList.remove('actif'); b.textContent = '🎙️ Recommencer l’enregistrement';
+      if (ctx && micCoupe && !coupeAvant) basculerMicro();
+    };
+    rec.start(); b.enregistreur = rec; b.classList.add('actif'); b.textContent = '⏹ Arrêter (lisez le texte)';
+    setTimeout(() => { if (b.enregistreur === rec) rec.stop(); }, 20000);
+  } catch (err) { alert('Micro indisponible : ' + err.message); }
+};
+
+depot.onsubmit = async (e) => {
+  e.preventDefault();
+  const etatDepot = document.getElementById('depot-etat');
+  if (!voixEnregistree) { etatDepot.textContent = 'Enregistrez d’abord votre voix.'; return; }
+  const f = new FormData(depot);
+  f.set('voix', voixEnregistree, 'voix' + (voixEnregistree.type.includes('webm') ? '.webm' : '.m4a'));
+  etatDepot.textContent = 'Envoi et vérification de la voix…';
+  document.getElementById('depot-envoyer').disabled = true;
+  try {
+    const r = await fetch('/personas/' + placeChoisie, { method: 'POST', body: f });
+    const d = await r.json();
+    etatDepot.textContent = r.ok ? 'Reçu ✓ — texte entendu : « ' + d.texte + ' ». Vous pouvez maintenant le choisir.'
+                                 : 'Erreur : ' + d.erreur;
+    if (r.ok) chargerPersonas();
+  } catch (err) { etatDepot.textContent = 'Erreur réseau : ' + err.message; }
+  document.getElementById('depot-envoyer').disabled = false;
+};
+
+// ─── Piscine du client : standard (démo) ou dictée ────────────────────────────────
+const etatPiscine = document.getElementById('etat-piscine');
+function afficherPiscine(d) {
+  document.querySelectorAll('.choix-piscine button').forEach((b) => b.classList.toggle('actif', b.dataset.choix === d.choix));
+  document.getElementById('fiche-piscine').textContent =
+    (d.choix === 'dictee' ? d.dictee : d.standard) || 'Aucune description dictée pour l’instant : utilisez « Dicter » ci-dessous.';
+}
+async function chargerPiscine() {
+  const r = await fetch('/piscine'); if (r.ok) afficherPiscine(await r.json());
+}
+document.querySelectorAll('.choix-piscine button').forEach((b) => b.onclick = async () => {
+  const r = await fetch('/piscine/choix', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                           body: JSON.stringify({ choix: b.dataset.choix }) });
+  if (r.ok) afficherPiscine(await r.json());
+});
+async function envoyerPiscine(voix) {
+  const f = new FormData();
+  if (voix) f.set('voix', voix, 'piscine' + (voix.type.includes('webm') ? '.webm' : '.m4a'));
+  const t = document.getElementById('texte-piscine').value.trim();
+  if (t) f.set('texte', t);
+  if (!voix && !t) { etatPiscine.textContent = 'Dictez ou écrivez d’abord une description.'; return; }
+  etatPiscine.textContent = voix ? 'Transcription en cours…' : 'Envoi…';
+  const r = await fetch('/piscine/dictee', { method: 'POST', body: f });
+  const d = await r.json();
+  if (r.ok) {
+    document.getElementById('texte-piscine').value = '';
+    etatPiscine.textContent = 'Ajouté ✓ : « ' + d.ajoute.slice(0, 200) + (d.ajoute.length > 200 ? '…' : '') + ' »';
+    await fetch('/piscine/choix', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ choix: 'dictee' }) });
+    chargerPiscine();
+  } else etatPiscine.textContent = 'Erreur : ' + d.erreur;
+}
+document.getElementById('envoyer-piscine').onclick = () => envoyerPiscine(null);
+document.getElementById('effacer-piscine').onclick = async () => {
+  if (!confirm('Effacer toute la description dictée de la piscine ?')) return;
+  const r = await fetch('/piscine/effacer', { method: 'POST' });
+  if (r.ok) { afficherPiscine(await r.json()); etatPiscine.textContent = 'Description dictée effacée.'; }
+};
+document.getElementById('dicter').onclick = async (e) => {
+  const b = e.target;
+  if (b.enregistreur) { b.enregistreur.stop(); return; }
+  const coupeAvant = micCoupe;
+  if (ctx && !micCoupe) basculerMicro();  // la conversation n'écoute pas pendant la dictée
+  try {
+    const flux = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 } });
+    const morceaux = [], rec = new MediaRecorder(flux);
+    rec.ondataavailable = (x) => morceaux.push(x.data);
+    rec.onstop = () => {
+      flux.getTracks().forEach((t) => t.stop());
+      b.enregistreur = null; b.classList.remove('actif'); b.textContent = '🎙️ Dicter la suite';
+      if (ctx && micCoupe && !coupeAvant) basculerMicro();
+      envoyerPiscine(new Blob(morceaux, { type: rec.mimeType || 'audio/mp4' }));
+    };
+    rec.start(); b.enregistreur = rec; b.classList.add('actif'); b.textContent = '⏹ Terminer la dictée';
+    setTimeout(() => { if (b.enregistreur === rec) rec.stop(); }, 5 * 60 * 1000);
+  } catch (err) { alert('Micro indisponible : ' + err.message); }
+};
+chargerPersonas();
+chargerPiscine();
+</script>
+</body>
+</html>
