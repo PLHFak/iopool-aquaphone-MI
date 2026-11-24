@@ -30,6 +30,11 @@ Répartition du travail :
 
 ## Étapes
 
+0. **Accès SSH du Mac mini** (à faire seul si Pierre le demande) : ajoute la clé publique du fichier
+   `windows/cle_mac_mini.pub` au compte Windows `evalh` (OpenSSH Windows). Si `evalh` est administrateur :
+   `C:\ProgramData\ssh\administrators_authorized_keys` (droits : seulement Administrators et SYSTEM) ;
+   sinon `C:\Users\evalh\.ssh\authorized_keys`. Vérifie que le service `sshd` tourne. Ne change rien
+   d'autre, puis dis à Pierre : « clé du Mac mini installée ». Le Mac mini prendra ensuite la suite.
 1. **État des lieux** (sans rien installer) : WSL2 et sa distribution, `nvidia-smi` dans WSL2, espace
    disque, présence de `~/iopool-aquaphone-MI` et `~/iopool-aquaphone` dans WSL2, ce qui écoute déjà sur
    le port 8765 (Windows et WSL2), état de Tailscale sur Windows. Fais le rapport à Pierre.
